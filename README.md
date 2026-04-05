@@ -1,166 +1,233 @@
-# ANRF-AISEHack-Phase-2-Theme-1-Flood-Detection-IBM
-### Flood Inundation Mapping — 3-Class Semantic Segmentation
+# Flood Inundation Mapping using Deep Learning
 
-**ANRF AISEHack Phase 2 | Theme 1: Flood Detection (IBM)**  
-West Bengal, India | Satellite Remote Sensing | Disaster Response
+## 3-Class Semantic Segmentation of Satellite Imagery
 
----
-
-## Overview
-
-This repository contains the solution developed for Phase 2 of the ANRF AISEHack competition, Theme 1: Flood Detection, in collaboration with IBM. The objective is pixel-level segmentation of satellite imagery into three classes:
-
-- **Class 0** — No Flood
-- **Class 1** — Flood (active inundation)
-- **Class 2** — Water Body (pre-existing permanent or seasonal water)
-
-The model ingests 6-channel multi-source satellite patches (SAR + multispectral optical) and produces per-pixel class predictions, submitted as run-length encoded (RLE) flood masks.
+**ANRF AISEHack 2026 — Phase 2**
+**Theme 1: Flood Detection (IBM)**
+**Domain:** Remote Sensing, Computer Vision, Disaster Response
 
 ---
 
-## Repository Structure
+## 1. Overview
+
+Flood disasters significantly impact infrastructure, agriculture, and human life. Rapid and accurate flood mapping is essential for emergency response, resource allocation, and long-term risk mitigation.
+
+This project presents a deep learning–based system for pixel-level semantic segmentation of multi-source satellite imagery to detect flooded regions. The model processes multi-channel satellite data and produces high-resolution flood maps suitable for disaster response workflows.
+
+The solution was developed as part of the **ANRF AISEHack Phase 2 Flood Detection Challenge**, organized in collaboration with IBM and the National Research Foundation of India.
+
+---
+
+## 2. Problem Definition
+
+The objective of this project is to perform semantic segmentation of satellite imagery into three distinct classes:
+
+| Class ID | Description                        |
+| -------- | ---------------------------------- |
+| 0        | No Flood                           |
+| 1        | Flood (Active Inundation)          |
+| 2        | Water Body (Permanent or Seasonal) |
+
+The model operates at pixel level, enabling precise identification of flooded areas and supporting operational disaster management systems.
+
+---
+
+## 3. Dataset Description
+
+**Geographic Region:** West Bengal, India
+**Time Period:** 2024 Monsoon Season
+**Data Type:** Multi-source satellite imagery
+**Task:** Semantic segmentation
+
+### Input Data Characteristics
+
+| Property           | Value               |
+| ------------------ | ------------------- |
+| Image format       | GeoTIFF             |
+| Image resolution   | 512 × 512 pixels    |
+| Number of channels | 6                   |
+| Label format       | Single-band GeoTIFF |
+| Label values       | {0, 1, 2}           |
+
+### Satellite Channels
+
+| Index | Channel | Sensor Type                               |
+| ----- | ------- | ----------------------------------------- |
+| 0     | HH      | Sentinel-1 Synthetic Aperture Radar (SAR) |
+| 1     | HV      | Sentinel-1 Synthetic Aperture Radar (SAR) |
+| 2     | Green   | Multispectral                             |
+| 3     | Red     | Multispectral                             |
+| 4     | NIR     | Multispectral                             |
+| 5     | SWIR    | Multispectral                             |
+
+---
+
+## 4. Methodology
+
+### 4.1 Model Architecture
+
+The system uses a lightweight **UNet++ encoder–decoder architecture** designed for semantic segmentation of satellite imagery. The architecture was modified to improve performance on flood detection tasks involving heterogeneous sensor data.
+
+Key architectural components include:
+
+#### Dilated Convolution Blocks
+
+Each encoder block contains parallel standard and dilated convolutions. This increases the effective receptive field without reducing spatial resolution, allowing the model to capture contextual flood patterns.
+
+#### Channel Attention using Squeeze-and-Excitation
+
+A channel-wise attention mechanism dynamically re-weights feature maps based on global spatial information. This enables the model to prioritize flood-relevant spectral channels such as NIR and SAR.
+
+#### Atrous Spatial Pyramid Pooling (ASPP)
+
+The bottleneck layer incorporates multi-scale atrous convolutions to capture spatial context at different resolutions. This improves segmentation accuracy for both large and small flood regions.
+
+---
+
+### 4.2 Patch-Based Inference
+
+Large satellite images are processed using overlapping patches to improve prediction consistency and reduce boundary artifacts.
+
+| Parameter  | Value     |
+| ---------- | --------- |
+| Patch size | 128 × 128 |
+| Stride     | 96        |
+| Overlap    | 32 pixels |
+
+Softmax probability maps from overlapping patches are averaged during reconstruction.
+
+---
+
+### 4.3 Data Normalization
+
+A robust two-step normalization strategy was applied independently to each channel:
+
+1. Percentile clipping to the range: 1st percentile to 99th percentile
+2. Z-score normalization using dataset-wide mean and standard deviation
+
+This approach improves numerical stability and reduces sensitivity to sensor noise.
+
+---
+
+### 4.4 Loss Function Design
+
+Flood detection datasets typically exhibit strong class imbalance, with non-flood pixels dominating the image. To address this, a composite loss function was implemented.
+
+| Loss Component         | Purpose                                |
+| ---------------------- | -------------------------------------- |
+| Dice Loss              | Improves segmentation overlap          |
+| Focal Loss             | Focuses training on difficult examples |
+| Weighted Cross Entropy | Handles class imbalance                |
+| Tversky Loss           | Penalizes missed flood detections      |
+
+---
+
+## 5. Data Augmentation
+
+To improve generalization, the following augmentation techniques were applied during training.
+
+### Geometric Transformations
+
+* Horizontal flip
+* Vertical flip
+* 90-degree rotation
+
+### Photometric Transformations
+
+Applied only to optical channels:
+
+* Contrast variation
+* Intensity scaling
+
+Synthetic Aperture Radar channels were excluded from photometric augmentation to preserve signal characteristics.
+
+---
+
+## 6. Training Configuration
+
+| Parameter               | Value                |
+| ----------------------- | -------------------- |
+| Optimizer               | AdamW                |
+| Learning rate           | 3 × 10⁻⁴             |
+| Learning rate scheduler | Cosine decay         |
+| Minimum learning rate   | 1 × 10⁻⁶             |
+| Batch size              | 16                   |
+| Maximum epochs          | 80                   |
+| Early stopping          | Enabled              |
+| Evaluation metric       | Validation Flood IoU |
+| Hardware                | NVIDIA GPU           |
+| Framework               | TensorFlow           |
+
+---
+
+## 7. Model Performance
+
+### Test Set Metrics
+
+| Metric           | Score  |
+| ---------------- | ------ |
+| IoU (No Flood)   | 0.7358 |
+| IoU (Flood)      | 0.1338 |
+| IoU (Water Body) | 0.2948 |
+| Mean IoU         | 0.3882 |
+| Pixel Accuracy   | 69.3%  |
+
+### Best Validation Performance
+
+* Best Flood IoU: **0.1517**
+* Training epoch: **8**
+* Optimal threshold: **0.45**
+
+---
+
+## 8. System Workflow
 
 ```
-.
+Satellite Image
+        ↓
+Preprocessing and Normalization
+        ↓
+Patch Generation
+        ↓
+UNet++ Segmentation Model
+        ↓
+Overlap Blending
+        ↓
+Flood Mask Prediction
+        ↓
+Run-Length Encoding
+        ↓
+Submission File
+```
+
+---
+
+## 9. Project Structure
+
+```
+project/
+│
 ├── data/
-│   ├── image/              # Training and test GeoTIFF patches (512x512, 6-band)
-│   ├── label/              # Ground truth label TIFs (0/1/2 per pixel)
-│   ├── split/              # train.txt, val.txt, test.txt, pred.txt
-│   └── prediction/image/   # Test images without ground truth (for submission)
-├── checkpoints/
-│   └── best_flood_iou.keras   # Best model checkpoint (monitored on val Flood IoU)
-├── viz/                    # Saved visualisation outputs
-├── flood_segmentation_unetpp.ipynb   # Main training and inference notebook
-├── submission.csv          # Final RLE submission file
+│   ├── image/
+│   ├── label/
+│   ├── prediction/
+│   └── split/
+│
+├── models/
+│
+├── notebooks/
+│   └── flood_segmentation_unetpp.ipynb
+│
+├── utils/
+│
+├── submission.csv
+│
 └── README.md
 ```
 
 ---
 
-## Data
-
-**Source:** Satellite imagery over West Bengal, India (2024 monsoon season)  
-**Format:** GeoTIFF patches, 512x512 pixels, 6 channels  
-**Labels:** Single-band GeoTIFF with values {0, 1, 2}
-
-| Channel | Name  | Sensor        |
-|---------|-------|---------------|
-| 0       | HH    | SAR (Sentinel-1) |
-| 1       | HV    | SAR (Sentinel-1) |
-| 2       | Green | Multispectral |
-| 3       | Red   | Multispectral |
-| 4       | NIR   | Multispectral |
-| 5       | SWIR  | Multispectral |
-
-Split files in `data/split/` list image stem IDs (without `_image.tif` suffix). The `pred.txt` split contains test images with no ground truth labels, used to generate the final submission.
-
----
-
-## Methodology
-
-### Architecture: UNet++ with Enhancements
-
-A lightweight UNet++ encoder-decoder (~12M parameters) trained from scratch on the 6-channel input. Three enhancements are applied over the baseline:
-
-**Dilated Convolution Blocks**  
-Each encoder block applies two parallel convolutions — standard (dilation=1) and dilated (dilation=2) — whose outputs are summed before the SE gate. This enlarges the effective receptive field without downsampling.
-
-**Squeeze-and-Excitation Channel Attention**  
-After each conv block, a channel-wise attention gate (ratio=8) learns to re-weight feature maps by their global spatial response, enabling the network to emphasise flood-informative channels such as NIR and HV.
-
-**ASPP Bottleneck**  
-The encoder bottleneck uses Atrous Spatial Pyramid Pooling with dilation rates [1, 2, 4, 6] plus a global average pooling branch, capturing flood context at multiple spatial scales before decoding.
-
-### Patch-Based Inference with Overlap Blending
-
-Images are decomposed into 128x128 sub-patches with stride 96 (32-pixel overlap). During inference, softmax probability maps from overlapping patches are averaged in the stitching pass, eliminating boundary seam artifacts.
-
-### Normalisation
-
-A two-pass robust normalisation is applied per channel:
-1. Clip to [1st percentile, 99th percentile] computed across the full training set
-2. Z-score normalisation using Welford mean and standard deviation on the clipped values
-
-SAR channels are not converted to dB. Raw linear amplitude with percentile clipping was found to outperform dB-converted inputs on this dataset.
-
-### Loss Function
-
-A four-component composite loss handles the severe class imbalance (no-flood pixels dominate approximately 73% of training labels):
-
-| Component         | Weight | Role |
-|-------------------|--------|------|
-| Dice Loss         | 0.35   | Overlap-based, class-frequency invariant |
-| Focal Loss (g=2)  | 0.25   | Down-weights easy background pixels |
-| Weighted CE       | 0.15   | Per-pixel weights [0.074, 0.680, 0.247] |
-| Tversky (a=0.7)   | 0.25   | Penalises missed flood pixels over false alarms |
-
-### Augmentation
-
-Geometric: random horizontal flip, vertical flip, 90-degree rotations (0/90/180/270).  
-Photometric: contrast jitter on optical channels only (channels 2-5), multiplicative factor in [0.85, 1.15]. SAR channels are excluded from photometric augmentation.
-
----
-
-## Training
-
-| Hyperparameter     | Value                        |
-|--------------------|------------------------------|
-| Optimizer          | AdamW (weight decay = 1e-5)  |
-| Learning rate      | 3e-4 with cosine decay       |
-| LR minimum         | 1e-6                         |
-| Batch size         | 16                           |
-| Max epochs         | 80                           |
-| Early stopping     | Patience 20, monitor val Flood IoU |
-| Checkpoint metric  | val_IoU_Flood (maximise)     |
-| Patch size         | 128x128                      |
-| Stride             | 96                           |
-| Flood threshold    | 0.45 (grid-searched on val)  |
-
-Training is performed on a single NVIDIA GPU using TensorFlow 2 with mixed-precision disabled for stability.
-
----
-
-## Results
-
-Aggregate test-set metrics (images pid_070 to pid_079):
-
-| Metric         | Score  |
-|----------------|--------|
-| IoU No Flood   | 0.7358 |
-| IoU Flood      | 0.1338 |
-| IoU Water Body | 0.2948 |
-| mIoU           | 0.3882 |
-| Pixel Accuracy | 69.3%  |
-
-Best validation Flood IoU achieved: **0.1517** (epoch 8 checkpoint).  
-Dynamic threshold search: best flood threshold = **0.45**.
-
----
-
-## Submission Format
-
-Predictions are submitted as a CSV with run-length encoded flood masks following Kaggle column-major convention (top-to-bottom, then left-to-right, 1-indexed). Images with no predicted flood pixels are encoded as `0 0`.
-
-```
-id,rle_mask
-20240529_EO4_RES2_fl_pid_080,498 6 1008 7 ...
-20240529_EO4_RES2_fl_pid_081,340 16 424 14 ...
-```
-
----
-
-## Requirements
-
-```
-tensorflow >= 2.12
-rasterio
-numpy
-pandas
-opencv-python
-tqdm
-matplotlib
-```
-Model Checkpoints: https://www.kaggle.com/models/adithyar21510/yolov8
+## 10. Requirements
 
 Install dependencies:
 
@@ -168,37 +235,63 @@ Install dependencies:
 pip install tensorflow rasterio numpy pandas opencv-python tqdm matplotlib
 ```
 
-The notebook was developed and tested on `nvcr.io/nvidia/tensorflow:25.02-tf2-py3`.
+---
+
+## 11. Execution Instructions
+
+### Step 1 — Prepare Dataset
+
+```
+data/image/
+data/label/
+data/split/
+```
+
+### Step 2 — Add Test Images
+
+```
+data/prediction/image/
+data/split/pred.txt
+```
+
+### Step 3 — Run Training or Inference
+
+```
+flood_segmentation_unetpp.ipynb
+```
+
+### Step 4 — Generate Submission File
+
+The output file will be:
+
+```
+submission.csv
+```
 
 ---
 
-## How to Run
+## 12. Applications
 
-1. Place training images in `data/image/`, labels in `data/label/`, and split files in `data/split/`.
-2. Place test images (no ground truth) in `data/prediction/image/` and list their IDs in `data/split/pred.txt`.
-3. Open and run `flood_segmentation_unetpp.ipynb` sequentially from top to bottom.
-4. The final `submission.csv` will be written to the project root.
+This system can be used in:
 
----
-
-## References
-
-- Zhou et al., "UNet++: A Nested U-Net Architecture for Medical Image Segmentation," MICCAI 2018
-- Lin et al., "Focal Loss for Dense Object Detection," ICCV 2017
-- Salehi et al., "Tversky Loss Function for Image Segmentation," MICCAI 2017
-- IBM NASA Geospatial: https://huggingface.co/ibm-nasa-geospatial
-- TerraTorch: https://github.com/terrastackai/terratorch
-- AISEHack Edition 1 helper code: https://github.com/AISEHack/AISEHack_Edition1_2026
+* Disaster response and emergency management
+* Flood risk monitoring
+* Climate and environmental analysis
+* Infrastructure protection
+* Satellite-based early warning systems
 
 ---
 
-## License
+## 13. References
 
-This project is released under the ANRF Open License.  
-License terms: https://anrfonline.in/ANRF/AbstractFilePath?FileType=E&FileName=OL_AISE.pdf&PathKey=DOCUMENT_TEMPLATE
+* Zhou et al. — UNet++: A Nested U-Net Architecture for Medical Image Segmentation
+* Lin et al. — Focal Loss for Dense Object Detection
+* Salehi et al. — Tversky Loss Function for Image Segmentation
+* IBM NASA Geospatial
+* TerraTorch
 
 ---
 
-## Acknowledgements
+## 14. License
 
-This work was developed as part of ANRF AISEHack Phase 2, Theme 1, supported by IBM and the National Research Foundation of India. The competition problem was designed around real flood events in West Bengal using data from Sentinel-1 and multispectral satellite platforms.
+This project is released under the ANRF Open License.
