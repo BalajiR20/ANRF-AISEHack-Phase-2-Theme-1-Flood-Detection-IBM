@@ -160,6 +160,7 @@ opencv-python
 tqdm
 matplotlib
 ```
+Model Checkpoints: https://www.kaggle.com/models/adithyar21510/yolov8
 
 Install dependencies:
 
